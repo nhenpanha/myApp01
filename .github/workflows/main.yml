@@ -1,1 +1,70 @@
+name: ci-cd                           # Workflow name in GitHub Actions
+
+on:                                   # When to run this workflow
+  push:                               # Run on code pushes
+    branches: ["main"]                # Only for the main branch
+  pull_request:                       # And on PRs targeting main
+    branches: ["main"]
+
+env:                                  # Shared env vars for all jobs
+  AWS_REGION: ap-southeast-1          # Your region
+  ECR_REPOSITORY: myapp01             # ECR repo name
+  ECS_CLUSTER: prod-cluster           # ECS cluster name
+  ECS_SERVICE: myapp01-service        # ECS service name
+  TASK_DEF_FILE: task-definition.json # Path to ECS task def in this repo
+
+jobs:
+  test:                               # 1) CI: run unit tests
+    runs-on: ubuntu-latest            # GitHub runner OS
+    steps:
+      - uses: actions/checkout@v4     # Checkout repository code
+      - uses: actions/setup-node@v4   # Install Node.js
+        with:
+          node-version: "20"          # Node LTS
+      - run: npm ci                   # Clean install deps
+      - run: npm test --if-present    # Run tests if defined
+
+  build-and-deploy:                   # 2) CD: build, push, deploy
+    needs: test                       # Only if tests passed
+    runs-on: ubuntu-latest
+    permissions:                      # Needed for GitHub OIDC → AWS
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4     # Get the code
+
+      - name: Configure AWS credentials (OIDC) # Short-lived creds via role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # IAM role ARN
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR       # Docker auth to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image               # Build the Docker image
+        run: |
+          IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA}  # 950130659320.dkr.ecr.ap-southeast-1.amazonaws.com/myapp01:<sha>
+          docker build -t "$IMAGE" .
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV  # Export IMAGE for later steps
+
+      - name: Push image                # Push to ECR
+        run: docker push "$IMAGE"
+
+      - name: Render task definition with new image  # Swap <TAG> with IMAGE
+        id: taskdef
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.TASK_DEF_FILE }}  # task-definition.json path
+          container-name: app                        # Container to update
+          image: ${{ env.IMAGE }}                    # New image URI
+
+      - name: Deploy Amazon ECS task definition      # Update ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.taskdef.outputs.task-definition }} # New revision
+          service: ${{ env.ECS_SERVICE }}                               # myapp01-service
+          cluster: ${{ env.ECS_CLUSTER }}                               # prod-cluster
+          wait-for-service-stability: true                              # Wait until healthy
 
