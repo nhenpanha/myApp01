@@ -27,7 +27,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm ci
+      - name: Install deps (lockfile preferred)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
       - run: npm test --if-present
 
   build-and-deploy:
