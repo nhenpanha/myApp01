@@ -29,8 +29,8 @@ jobs:
     needs: test                       # Only if tests passed
     runs-on: ubuntu-latest
     permissions:                      # Needed for GitHub OIDC → AWS
-      contents: read
-      id-token: write
+      contents: read                  #
+      id-token: write                 #
     steps:
       - uses: actions/checkout@v4     # Get the code
 
