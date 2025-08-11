@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4   # Install Node.js
         with:
           node-version: "20"          # Node LTS
-      - run: npm ci                   # Clean install deps
+      - run: npm install                   # Clean install deps
       - run: npm test --if-present    # Run tests if defined
 
   build-and-deploy:                   # 2) CD: build, push, deploy
