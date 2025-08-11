@@ -25,6 +25,7 @@ jobs:
       - run: npm test --if-present    # Run tests if defined
 
   build-and-deploy:                   # 2) CD: build, push, deploy
+    if: github.event_name == 'push'
     needs: test                       # Only if tests passed
     runs-on: ubuntu-latest
     permissions:                      # Needed for GitHub OIDC → AWS
