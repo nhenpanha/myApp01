@@ -1,5 +1,21 @@
-- name: Build image
-  run: |
-    IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA}
-    docker build -t "$IMAGE" .
-    echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+# Use Node 20 (LTS) on Alpine
+FROM node:20-alpine
+
+# Create app dir
+WORKDIR /usr/src/app
+
+# Install deps using lockfile if present
+COPY package*.json ./
+RUN npm ci --omit=dev || npm install --omit=dev
+
+# Copy the rest of the app
+COPY . .
+
+# Runtime env
+ENV NODE_ENV=production PORT=3000
+
+# Container port (ALB forwards to this)
+EXPOSE 3000
+
+# Start the app
+CMD ["npm", "start"]

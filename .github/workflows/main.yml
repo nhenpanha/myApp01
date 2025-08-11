@@ -67,7 +67,7 @@ jobs:
           docker build -t "$IMAGE" .
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV  # Export IMAGE for later steps
 
-      - name: Push image                # Push to ECR
+      - name: Push image                # Push to ECR###
         run: docker push "$IMAGE"
 
       - name: Render task definition with new image  # Swap <TAG> with IMAGE
