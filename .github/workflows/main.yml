@@ -1,72 +1,74 @@
-name: ci-cd                           # Workflow name in GitHub Actions
+name: ci-cd
 
-on:                                   # When to run this workflow
-  push:                               # Run on code pushes
-    branches: ["main"]                # Only for the main branch#
-  pull_request:                       # And on PRs targeting main#
+on:
+  push:
     branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
-env:                                  # Shared env vars for all jobs
-  AWS_REGION: ap-southeast-1          # Your region
-  ECR_REPOSITORY: myapp01             # ECR repo name
-  ECS_CLUSTER: prod-cluster           # ECS cluster name
-  ECS_SERVICE: myapp01-service        # ECS service name
-  TASK_DEF_FILE: task-definition.json # Path to ECS task def in this repo
+# avoid overlapping deploys from multiple pushes
+concurrency:
+  group: ecs-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REPOSITORY: myapp01
+  ECS_CLUSTER: prod-cluster
+  ECS_SERVICE: myapp01-service
+  TASK_DEF_FILE: task-definition.json
 
 jobs:
-  test:                               # 1) CI: run unit tests
-    runs-on: ubuntu-latest            # GitHub runner OS
-    steps:
-      - uses: actions/checkout@v4     # Checkout repository code
-      - uses: actions/setup-node@v4   # Install Node.js
-        with:
-          node-version: "20"          # Node LTS
-      - run: npm install                   # Clean install deps
-      - run: npm test --if-present    # Run tests if defined
-
-  build-and-deploy:                   # 2) CD: build, push, deploy
-    if: github.event_name == 'push'
-    needs: test                       # Only if tests passed
+  test:
     runs-on: ubuntu-latest
-    permissions:                      # Needed for GitHub OIDC → AWS
-      contents: read                  #
-      id-token: write                 #
     steps:
-      - uses: actions/checkout@v4     # Get the code
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm test --if-present
 
-      - name: Configure AWS credentials (keys)
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Static credentials from repo secrets (no OIDC)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR       # Docker auth to ECR
-        id: login-ecr
+      - name: Login to Amazon ECR
+        id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build image               # Build the Docker image
+      - name: Build image
         run: |
-          IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA}  # 950130659320.dkr.ecr.ap-southeast-1.amazonaws.com/myapp01:<sha>
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA}"
           docker build -t "$IMAGE" .
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV  # Export IMAGE for later steps
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Push image                # Push to ECR###
+      - name: Push image
         run: docker push "$IMAGE"
 
-      - name: Render task definition with new image  # Swap <TAG> with IMAGE
-        id: taskdef
+      - name: Render task definition with new image
+        id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ env.TASK_DEF_FILE }}  # task-definition.json path
-          container-name: app                        # Container to update
-          image: ${{ env.IMAGE }}                    # New image URI
+          task-definition: ${{ env.TASK_DEF_FILE }}
+          container-name: app
+          image: ${{ env.IMAGE }}
 
-      - name: Deploy Amazon ECS task definition      # Update ECS service
+      - name: Deploy to Amazon ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.taskdef.outputs.task-definition }} # New revision
-          service: ${{ env.ECS_SERVICE }}                               # myapp01-service
-          cluster: ${{ env.ECS_CLUSTER }}                               # prod-cluster
-          wait-for-service-stability: true                              # Wait until healthy
-
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

@@ -1,14 +1,16 @@
-import express from "express";
+const express = require("express");
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 
-app.get("/health", (req, res) => res.status(200).send("ok"));
+app.get("/health", (_, res) => res.status(200).send("ok"));
 
 
-app.get("/", (req, res) => res.send("Hello from myApp01!"));
-
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on ${port}`);
+app.get("/", (_, res) => {
+  res.json({
+    message: "Hello from ECS Fargate behind ALB (no DB/Redis)!",
+    uptime_secs: process.uptime()
+  });
 });
 
+app.listen(PORT, () => console.log(`Listening on ${PORT}`));
