@@ -1,0 +1,31 @@
+{
+  "name": "myapp01",
+  "version": "1.0.0",
+  "description": "MyApp01 - Node.js application for ECS Fargate deployment",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",     // Start the app in production
+    "dev": "nodemon server.js",    // Start in dev mode (if using nodemon)
+    "test": "echo \"No tests yet\" && exit 0"  // Always succeed until real tests added
+  },
+  "keywords": [
+    "nodejs",
+    "ecs",
+    "fargate",
+    "aws"
+  ],
+  "author": "panhanhen",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",           // Web server
+    "mysql2": "^3.9.7",              // MySQL/Aurora client
+    "redis": "^4.6.7",               // Redis/ElastiCache client
+    "dotenv": "^16.4.5"              // Load .env (optional)
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"              // Auto-reload in dev (optional)
+  },
+  "engines": {
+    "node": ">=20"                   // Match version in Dockerfile
+  }
+}
