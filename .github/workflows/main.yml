@@ -2,7 +2,7 @@ name: ci-cd                           # Workflow name in GitHub Actions
 
 on:                                   # When to run this workflow
   push:                               # Run on code pushes
-    branches: ["main"]                # Only for the main branch
+    branches: ["main"]                # Only for the main branch#
   pull_request:                       # And on PRs targeting main#
     branches: ["main"]
 
