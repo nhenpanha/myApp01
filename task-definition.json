@@ -1,29 +1,29 @@
 {
-  "family": "myapp01-task",                               // Task family name
-  "networkMode": "awsvpc",                                // Fargate requires awsvpc
-  "cpu": "256",                                           // 0.25 vCPU
-  "memory": "512",                                        // 0.5 GB RAM
-  "requiresCompatibilities": ["FARGATE"],                 // Run on Fargate
+  "family": "myapp01-task",                               
+  "networkMode": "awsvpc",                                
+  "cpu": "256",                                           
+  "memory": "512",                                        
+  "requiresCompatibilities": ["FARGATE"],                 
   "executionRoleArn": "arn:aws:iam::950130659320:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::950130659320:role/myApp01TaskRole",
   "containerDefinitions": [
     {
       "name": "app",
-      "image": "950130659320.dkr.ecr.ap-southeast-1.amazonaws.com/myapp01:${GITHUB_SHA}", // Replaced by workflow
-      "portMappings": [{ "containerPort": 3000 }],       // ALB forwards to 3000
+      "image": "950130659320.dkr.ecr.ap-southeast-1.amazonaws.com/myapp01:${GITHUB_SHA}", 
+      "portMappings": [{ "containerPort": 3000 }],       
       "essential": true,
       "environment": [
         { "name": "NODE_ENV", "value": "production" },
         { "name": "PORT", "value": "3000" }
       ],
       "secrets": [
-        // SSM Parameters (full ARNs recommended)
+     
         { "name": "DB_HOST",    "valueFrom": "arn:aws:ssm:ap-southeast-1:950130659320:parameter/myapp01/db/host" },
         { "name": "DB_NAME",    "valueFrom": "arn:aws:ssm:ap-southeast-1:950130659320:parameter/myapp01/db/name" },
         { "name": "REDIS_HOST", "valueFrom": "arn:aws:ssm:ap-southeast-1:950130659320:parameter/myapp01/redis/host" },
         { "name": "REDIS_PORT", "valueFrom": "arn:aws:ssm:ap-southeast-1:950130659320:parameter/myapp01/redis/port" },
 
-        // Secrets Manager (use secret names; avoids random suffix)
+  
         { "name": "DB_USER",     "valueFrom": "myapp01/db/user" },
         { "name": "DB_PASSWORD", "valueFrom": "myapp01/db/password" }
       ],
