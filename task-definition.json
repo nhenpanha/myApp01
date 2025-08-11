@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "app",
-      "image": "950130659320.dkr.ecr.ap-southeast-1.amazonaws.com/myapp01:<TAG>", // Replaced by workflow
+      "image": "950130659320.dkr.ecr.ap-southeast-1.amazonaws.com/myapp01:${GITHUB_SHA}", // Replaced by workflow
       "portMappings": [{ "containerPort": 3000 }],       // ALB forwards to 3000
       "essential": true,
       "environment": [
